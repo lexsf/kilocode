@@ -267,5 +267,8 @@
 		"automatic": "Biarkan Kilo yang memutuskan",
 		"xml": "XML",
 		"json": "JSON (eksperimental)"
+	},
+	"releaseNotes": {
+		"viewReleaseNotes": "Lihat Catatan Rilis"
 	}
 }

@@ -267,5 +267,8 @@
 		"automatic": "Lascia decidere a Kilo",
 		"xml": "XML",
 		"json": "JSON (sperimentale)"
+	},
+	"releaseNotes": {
+		"viewReleaseNotes": "Visualizza Note di Rilascio"
 	}
 }
