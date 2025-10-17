@@ -408,6 +408,59 @@ export class ClineProvider
 		}
 	}
 
+	/**
+	 * Updates the code index manager with current Kilo org credentials
+	 * This should be called whenever the API configuration changes
+	 */
+	private async updateCodeIndexWithKiloProps(): Promise<void> {
+		try {
+			const { apiConfiguration } = await this.getState()
+
+			// Only proceed if we have both required credentials
+			if (!apiConfiguration.kilocodeToken || !apiConfiguration.kilocodeOrganizationId) {
+				return
+			}
+
+			// Get project ID from Kilo config
+			const kiloConfig = await this.getKiloConfig()
+			const projectId = kiloConfig?.project?.id
+
+			if (!projectId) {
+				this.log("[updateCodeIndexWithKiloProps] No projectId found in Kilo config, skipping code index update")
+				return
+			}
+
+			// Get or create the code index manager for the current workspace
+			let codeIndexManager = this.getCurrentWorkspaceCodeIndexManager()
+
+			// If manager doesn't exist yet, it will be created on first access
+			// We need to ensure it's initialized with the context proxy
+			if (!codeIndexManager) {
+				// Try to get the manager again, which will create it if workspace exists
+				const workspacePath = this.cwd
+				if (workspacePath) {
+					codeIndexManager = CodeIndexManager.getInstance(this.context, workspacePath)
+				}
+			}
+
+			if (codeIndexManager) {
+				// Set the Kilo org props
+				codeIndexManager.setKiloOrgCodeIndexProps({
+					kilocodeToken: apiConfiguration.kilocodeToken,
+					organizationId: apiConfiguration.kilocodeOrganizationId,
+					projectId,
+				})
+
+				// Initialize the manager with context proxy if not already initialized
+				if (!codeIndexManager.isInitialized) {
+					await codeIndexManager.initialize(this.contextProxy)
+				}
+			}
+		} catch (error) {
+			this.log(`Failed to update code index with Kilo props: ${error}`)
+		}
+	}
+
 	// Adds a new Task instance to clineStack, marking the start of a new task.
 	// The instance is pushed to the top of the stack (LIFO order).
 	// When the task is completed, the top instance is removed, reactivating the
@@ -1358,6 +1411,9 @@ ${prompt}
 				}
 
 				await TelemetryService.instance.updateIdentity(providerSettings.kilocodeToken ?? "") // kilocode_change
+
+				// Update code index with new Kilo org props
+				await this.updateCodeIndexWithKiloProps()
 			} else {
 				await this.updateGlobalState("listApiConfigMeta", await this.providerSettingsManager.listConfig())
 			}
@@ -1422,6 +1478,9 @@ ${prompt}
 
 		await this.postStateToWebview()
 		await TelemetryService.instance.updateIdentity(providerSettings.kilocodeToken ?? "") // kilocode_change
+
+		// Update code index with new Kilo org props
+		await this.updateCodeIndexWithKiloProps()
 
 		if (providerSettings.apiProvider) {
 			this.emit(RooCodeEventName.ProviderProfileChanged, { name, provider: providerSettings.apiProvider })

@@ -30,6 +30,7 @@ import { TelemetryService } from "@roo-code/telemetry"
 import { TelemetryEventName } from "@roo-code/types"
 import { sanitizeErrorMessage } from "../shared/validation-helpers"
 import { Package } from "../../../shared/package"
+import { indexFromCodeBlocks } from "../KiloOrgCodeIndexer"
 
 export class DirectoryScanner implements IDirectoryScanner {
 	private _cancelled = false // kilocode_change
@@ -205,8 +206,13 @@ export class DirectoryScanner implements IDirectoryScanner {
 					onFileParsed?.(fileBlockCount)
 					processedCount++
 
-					// Process embeddings if configured
-					if (this.embedder && this.qdrantClient && blocks.length > 0) {
+					// kilocode_change start: Process blocks in Kilo org mode OR with embedder/qdrant
+					const hasKiloOrgProps = !!this.getKiloOrgCodeIndexProps()
+					const shouldProcessBlocks = (this.embedder && this.qdrantClient) || hasKiloOrgProps
+
+					// Process embeddings if configured (either local or Kilo org mode)
+					if (shouldProcessBlocks && blocks.length > 0) {
+						// kilocode_change end
 						// Add to batch accumulators
 						let addedBlocksFromFile = false
 						for (const block of blocks) {
@@ -458,96 +464,119 @@ export class DirectoryScanner implements IDirectoryScanner {
 			// kilocode_change end
 
 			try {
-				// --- Deletion Step ---
-				console.debug("[DirectoryScanner] Starting deletion step for modified files") // kilocode_change
-				const uniqueFilePaths = [
-					...new Set(
-						batchFileInfos
-							.filter((info) => !info.isNew) // Only modified files (not new)
-							.map((info) => info.filePath),
-					),
-				]
-				// kilocode_change start
-				console.debug(
-					`[DirectoryScanner] Identified ${uniqueFilePaths.length} modified files to delete points for`,
-				)
-				// kilocode_change end
+				// kilocode_change start: Skip deletion step in Kilo org mode (handled server-side)
+				const kiloOrgProps = this.getKiloOrgCodeIndexProps()
 
-				if (uniqueFilePaths.length > 0) {
-					try {
-						await this.qdrantClient.deletePointsByMultipleFilePaths(uniqueFilePaths)
-						// kilocode_change start
-						console.debug(
-							`[DirectoryScanner] Successfully deleted points for ${uniqueFilePaths.length} files`,
-						)
-						// kilocode_change end
-					} catch (deleteError: any) {
-						const errorStatus =
-							deleteError?.status || deleteError?.response?.status || deleteError?.statusCode
-						const errorMessage = deleteError instanceof Error ? deleteError.message : String(deleteError)
+				if (!kiloOrgProps && this.qdrantClient) {
+					// --- Deletion Step (only for local mode) ---
+					console.debug("[DirectoryScanner] Starting deletion step for modified files")
+					const uniqueFilePaths = [
+						...new Set(
+							batchFileInfos
+								.filter((info) => !info.isNew) // Only modified files (not new)
+								.map((info) => info.filePath),
+						),
+					]
+					console.debug(
+						`[DirectoryScanner] Identified ${uniqueFilePaths.length} modified files to delete points for`,
+					)
 
-						console.error(
-							`[DirectoryScanner] Failed to delete points for ${uniqueFilePaths.length} files before upsert in workspace ${scanWorkspace}:`,
-							deleteError,
-						)
+					if (uniqueFilePaths.length > 0) {
+						try {
+							await this.qdrantClient.deletePointsByMultipleFilePaths(uniqueFilePaths)
+							console.debug(
+								`[DirectoryScanner] Successfully deleted points for ${uniqueFilePaths.length} files`,
+							)
+						} catch (deleteError: any) {
+							const errorStatus =
+								deleteError?.status || deleteError?.response?.status || deleteError?.statusCode
+							const errorMessage =
+								deleteError instanceof Error ? deleteError.message : String(deleteError)
 
-						TelemetryService.instance.captureEvent(TelemetryEventName.CODE_INDEX_ERROR, {
-							error: sanitizeErrorMessage(errorMessage),
-							stack:
-								deleteError instanceof Error
-									? sanitizeErrorMessage(deleteError.stack || "")
-									: undefined,
-							location: "processBatch:deletePointsByMultipleFilePaths",
-							fileCount: uniqueFilePaths.length,
-							errorStatus: errorStatus,
-						})
+							console.error(
+								`[DirectoryScanner] Failed to delete points for ${uniqueFilePaths.length} files before upsert in workspace ${scanWorkspace}:`,
+								deleteError,
+							)
 
-						// Re-throw with workspace context
-						throw new Error(
-							`Failed to delete points for ${uniqueFilePaths.length} files. Workspace: ${scanWorkspace}. ${errorMessage}`,
-							{ cause: deleteError },
-						)
+							TelemetryService.instance.captureEvent(TelemetryEventName.CODE_INDEX_ERROR, {
+								error: sanitizeErrorMessage(errorMessage),
+								stack:
+									deleteError instanceof Error
+										? sanitizeErrorMessage(deleteError.stack || "")
+										: undefined,
+								location: "processBatch:deletePointsByMultipleFilePaths",
+								fileCount: uniqueFilePaths.length,
+								errorStatus: errorStatus,
+							})
+
+							// Re-throw with workspace context
+							throw new Error(
+								`Failed to delete points for ${uniqueFilePaths.length} files. Workspace: ${scanWorkspace}. ${errorMessage}`,
+								{ cause: deleteError },
+							)
+						}
 					}
+					// --- End Deletion Step ---
+				} else if (kiloOrgProps) {
+					console.debug("[DirectoryScanner] Skipping deletion step (Kilo org mode - handled server-side)")
 				}
-				// --- End Deletion Step ---
+				// kilocode_change end
 
 				// Create embeddings for batch
 				if (this._cancelled) return // kilocode_change
 
-				console.debug(`[DirectoryScanner] Creating embeddings for ${batchTexts.length} texts`) // kilocode_change
+				console.debug(`[DirectoryScanner] Creating embeddings for ${batchTexts.length} texts`)
+				console.debug(`[DirectoryScanner] Kilo org props:`, kiloOrgProps) // kilocode_change
+				if (kiloOrgProps) {
+					console.debug(`[DirectoryScanner] Using Kilo org indexing for ${batchBlocks.length} blocks`)
+					await indexFromCodeBlocks({
+						blocks: batchBlocks,
+						cwd: scanWorkspace,
+						kilocodeToken: kiloOrgProps.kilocodeToken,
+						organizationId: kiloOrgProps.organizationId,
+						projectId: kiloOrgProps.projectId,
+					})
+					console.debug(`[DirectoryScanner] Kilo org indexing completed for batch`)
+				} else if (this.embedder && this.qdrantClient) {
+					console.debug(`[DirectoryScanner] Using local embedder (no Kilo org props)`)
+					const { embeddings } = await this.embedder.createEmbeddings(batchTexts)
+					console.debug(`[DirectoryScanner] Successfully created ${embeddings.length} embeddings`)
 
-				const { embeddings } = await this.embedder.createEmbeddings(batchTexts)
-				console.debug(`[DirectoryScanner] Successfully created ${embeddings.length} embeddings`) // kilocode_change
+					// Prepare points for Qdrant
+					console.debug("[DirectoryScanner] Preparing points for Qdrant upsert")
+					const points = batchBlocks.map((block, index) => {
+						const normalizedAbsolutePath = generateNormalizedAbsolutePath(block.file_path, scanWorkspace)
 
-				// Prepare points for Qdrant
-				console.debug("[DirectoryScanner] Preparing points for Qdrant upsert") // kilocode_change
-				const points = batchBlocks.map((block, index) => {
-					const normalizedAbsolutePath = generateNormalizedAbsolutePath(block.file_path, scanWorkspace)
+						// Use segmentHash for unique ID generation to handle multiple segments from same line
+						const pointId = uuidv5(block.segmentHash, QDRANT_CODE_BLOCK_NAMESPACE)
 
-					// Use segmentHash for unique ID generation to handle multiple segments from same line
-					const pointId = uuidv5(block.segmentHash, QDRANT_CODE_BLOCK_NAMESPACE)
+						return {
+							id: pointId,
+							vector: embeddings[index],
+							payload: {
+								filePath: generateRelativeFilePath(normalizedAbsolutePath, scanWorkspace),
+								codeChunk: block.content,
+								startLine: block.start_line,
+								endLine: block.end_line,
+								segmentHash: block.segmentHash,
+							},
+						}
+					})
+					console.debug(`[DirectoryScanner] Prepared ${points.length} points for Qdrant`)
 
-					return {
-						id: pointId,
-						vector: embeddings[index],
-						payload: {
-							filePath: generateRelativeFilePath(normalizedAbsolutePath, scanWorkspace),
-							codeChunk: block.content,
-							startLine: block.start_line,
-							endLine: block.end_line,
-							segmentHash: block.segmentHash,
-						},
-					}
-				})
-				console.debug(`[DirectoryScanner] Prepared ${points.length} points for Qdrant`) // kilocode_change
+					// Upsert points to Qdrant
+					if (this._cancelled) return
 
-				// Upsert points to Qdrant
-				if (this._cancelled) return // kilocode_change
+					console.debug("[DirectoryScanner] Starting Qdrant upsert")
 
-				console.debug("[DirectoryScanner] Starting Qdrant upsert") // kilocode_change
+					await this.qdrantClient.upsertPoints(points)
+				} else {
+					console.warn(
+						`[DirectoryScanner] No indexing method available - embedder: ${!!this.embedder}, qdrant: ${!!this.qdrantClient}, kiloProps: ${!!kiloOrgProps}`,
+					)
+				}
 
-				await this.qdrantClient.upsertPoints(points)
-				console.debug("[DirectoryScanner] Completed Qdrant upsert") // kilocode_change
+				console.debug("[DirectoryScanner] Completed batch processing")
 				onBlocksIndexed?.(batchBlocks.length)
 
 				// Update hashes for successfully processed files in this batch
@@ -603,4 +632,20 @@ export class DirectoryScanner implements IDirectoryScanner {
 			}
 		}
 	}
+
+	// kilocode_change start Add ability to set kilo specific props
+	private _kiloOrgCodeIndexProps: {
+		organizationId: string
+		kilocodeToken: string
+		projectId: string
+	} | null = null
+
+	public setKiloOrgCodeIndexProps(props: NonNullable<typeof this._kiloOrgCodeIndexProps>) {
+		this._kiloOrgCodeIndexProps = props
+	}
+
+	public getKiloOrgCodeIndexProps() {
+		return this._kiloOrgCodeIndexProps
+	}
+	// kilocode_change end
 }
