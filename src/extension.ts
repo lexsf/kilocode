@@ -112,7 +112,7 @@ export async function activate(context: vscode.ExtensionContext) {
 	// context.subscriptions.push(cloudService)
 	// kilocode_change end
 
-	// Initialize MDM service
+	// Initialize MDM service!!!
 	const mdmService = await MdmService.createInstance(cloudLogger)
 
 	// Initialize i18n for internationalization support

@@ -1,9 +1,10 @@
 // kilocode_change - new file: Component to display a complete release note with sections
-import React from "react"
+import React, { useMemo } from "react"
 import { Sparkles, Bug, Wrench, AlertTriangle, FileText } from "lucide-react"
-import { ReleaseNote } from "../../types/release-notes"
+import { ReleaseNote } from "@roo-code/types"
 import { ReleaseSection } from "./ReleaseSection"
-import { REPOSITORY_URL } from "../../constants/repository"
+
+const REPOSITORY_URL = "https://github.com/kilocode/kilocode"
 
 interface ReleaseNoteDisplayProps {
 	release: ReleaseNote
@@ -11,7 +12,20 @@ interface ReleaseNoteDisplayProps {
 }
 
 export const ReleaseNoteDisplay: React.FC<ReleaseNoteDisplayProps> = ({ release, isLatest }) => {
-	const { version, breakingChanges, features, fixes, improvements, rawChanges } = release
+	const { version, changes } = release
+
+	// Categorize changes based on their category field
+	const categorizedChanges = useMemo(() => {
+		const features = changes.filter((item) => item.category === "feature")
+		const fixes = changes.filter((item) => item.category === "fix")
+		const improvements = changes.filter((item) => item.category === "improvement")
+		const breakingChanges = changes.filter((item) => item.category === "breaking")
+		const others = changes.filter((item) => item.category === "other")
+
+		return { features, fixes, improvements, breakingChanges, others }
+	}, [changes])
+
+	const { features, fixes, improvements, breakingChanges, others } = categorizedChanges
 
 	return (
 		<div className="mb-6 pb-4 border-b border-vscode-panel-border last:border-b-0">
@@ -54,17 +68,12 @@ export const ReleaseNoteDisplay: React.FC<ReleaseNoteDisplayProps> = ({ release,
 				icon={<AlertTriangle className="w-4 h-4 text-vscode-errorForeground" />}
 			/>
 
-			{/* Show uncategorized items if no categorized items exist */}
-			{features.length === 0 &&
-				fixes.length === 0 &&
-				improvements.length === 0 &&
-				breakingChanges.length === 0 && (
-					<ReleaseSection
-						title="Changes"
-						items={rawChanges}
-						icon={<FileText className="w-4 h-4 text-vscode-descriptionForeground" />}
-					/>
-				)}
+			{/* Show uncategorized items */}
+			<ReleaseSection
+				title="Other Changes"
+				items={others}
+				icon={<FileText className="w-4 h-4 text-vscode-descriptionForeground" />}
+			/>
 		</div>
 	)
 }

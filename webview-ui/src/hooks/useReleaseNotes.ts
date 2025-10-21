@@ -1,6 +1,6 @@
 // kilocode_change - new file: Simple hook for release notes with global cache (UI-only, no persistence)
 import { useState } from "react"
-import { ReleaseNote } from "../types/release-notes"
+import { ReleaseNote } from "@roo-code/types"
 
 // Global cache
 let releasesCache: ReleaseData | null = null

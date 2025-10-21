@@ -1,6 +1,6 @@
 // kilocode_change - new file: Component to display a section of release notes
 import React from "react"
-import { ReleaseItem } from "../../types/release-notes"
+import { ReleaseItem } from "@roo-code/types"
 import { ReleaseItemComponent } from "./ReleaseItem"
 
 interface ReleaseSectionProps {

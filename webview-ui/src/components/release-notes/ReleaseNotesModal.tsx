@@ -2,7 +2,7 @@
 import React, { useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "../ui/dialog"
 import { ReleaseNoteDisplay } from "./ReleaseNoteDisplay"
-import { ReleaseNote } from "../../types/release-notes"
+import { ReleaseNote } from "@roo-code/types"
 
 interface ReleaseNotesModalProps {
 	isOpen: boolean

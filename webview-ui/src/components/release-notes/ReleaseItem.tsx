@@ -1,7 +1,8 @@
 // kilocode_change - new file: Component to display individual release note items
 import React from "react"
-import { ReleaseItem } from "../../types/release-notes"
-import { REPOSITORY_URL } from "../../constants/repository"
+import { ReleaseItem } from "@roo-code/types"
+
+const REPOSITORY_URL = "https://github.com/kilocode/kilocode"
 
 interface ReleaseItemProps {
 	item: ReleaseItem
@@ -43,11 +44,6 @@ export const ReleaseItemComponent: React.FC<ReleaseItemProps> = ({ item }) => {
 					</span>
 				)}
 			</div>
-			{item.details && (
-				<div className="ml-4 mt-1 text-xs text-vscode-descriptionForeground whitespace-pre-line">
-					{item.details}
-				</div>
-			)}
 		</div>
 	)
 }
