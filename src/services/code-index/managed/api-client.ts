@@ -6,9 +6,9 @@
  */
 
 import axios from "axios"
-import { getKiloBaseUriFromToken } from "../../../shared/kilocode/token"
 import { ManagedCodeChunk, SearchRequest, SearchResult, ServerManifest } from "./types"
 import { logger } from "../../../utils/logging"
+import { getKiloBaseUriFromToken } from "../../../../packages/types/src/kilocode/kilocode"
 
 /**
  * Upserts code chunks to the server using the new envelope format

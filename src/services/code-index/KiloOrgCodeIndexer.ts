@@ -27,9 +27,8 @@ import { v5 as uuidv5 } from "uuid"
 import { CodeBlock } from "./interfaces"
 import { generateNormalizedAbsolutePath, generateRelativeFilePath } from "./shared/get-relative-path"
 import axios from "axios"
-import { getKiloBaseUriFromToken } from "../../shared/kilocode/token"
-import { X_KILOCODE_ORGANIZATIONID, X_KILOCODE_TESTER } from "../../shared/kilocode/headers"
 import { logger } from "../../utils/logging"
+import { getKiloBaseUriFromToken } from "../../../packages/types/src/kilocode/kilocode"
 
 interface KiloOrgCodeBlock {
 	id: string

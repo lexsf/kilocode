@@ -496,7 +496,7 @@ export class CodeIndexManager {
 		projectId: string
 	} | null = null
 
-	public async setKiloOrgCodeIndexProps(props: NonNullable<typeof this._kiloOrgCodeIndexProps>) {
+	public setKiloOrgCodeIndexProps(props: NonNullable<typeof this._kiloOrgCodeIndexProps>) {
 		this._kiloOrgCodeIndexProps = props
 
 		// Pass props to config manager if it exists
@@ -505,9 +505,7 @@ export class CodeIndexManager {
 		}
 
 		// Start managed indexing automatically
-		try {
-			await this.startManagedIndexing()
-		} catch (error) {
+		this.startManagedIndexing().catch((error) => {
 			const err = error instanceof Error ? error : new Error(String(error))
 			console.error("[CodeIndexManager] Failed to start managed indexing:", err.message)
 			if (err.stack) {
@@ -516,7 +514,7 @@ export class CodeIndexManager {
 			// Don't throw - allow the manager to continue functioning
 			// Set error state so UI can show the issue
 			this._stateManager.setSystemState("Error", `Failed to start indexing: ${err.message}`)
-		}
+		})
 
 		// Pass the props to the scanner through the service factory
 		// The scanner will be updated when services are recreated

@@ -421,6 +421,27 @@ export class ClineProvider
 				return
 			}
 
+			// Get kilocodeTesterWarningsDisabledUntil from context
+			const kilocodeTesterWarningsDisabledUntil = this.contextProxy.getValue(
+				"kilocodeTesterWarningsDisabledUntil",
+			)
+
+			// Fetch organization settings to check if code indexing is enabled
+			const { OrganizationService } = await import("../../services/kilocode/OrganizationService")
+			const organization = await OrganizationService.fetchOrganization(
+				apiConfiguration.kilocodeToken,
+				apiConfiguration.kilocodeOrganizationId,
+				kilocodeTesterWarningsDisabledUntil,
+			)
+
+			// Check if code indexing is enabled for this organization
+			const codeIndexingEnabled = OrganizationService.isCodeIndexingEnabled(organization)
+
+			if (!codeIndexingEnabled) {
+				this.log("[updateCodeIndexWithKiloProps] Code indexing is disabled for this organization")
+				return
+			}
+
 			// Get project ID from Kilo config
 			const kiloConfig = await this.getKiloConfig()
 			const projectId = kiloConfig?.project?.id
@@ -444,7 +465,7 @@ export class ClineProvider
 			}
 
 			if (codeIndexManager) {
-				// Set the Kilo org props
+				// Set the Kilo org props - code indexing is enabled
 				codeIndexManager.setKiloOrgCodeIndexProps({
 					kilocodeToken: apiConfiguration.kilocodeToken,
 					organizationId: apiConfiguration.kilocodeOrganizationId,
