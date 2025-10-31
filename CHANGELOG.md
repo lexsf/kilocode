@@ -1,8 +1,6 @@
 # kilo-code
 
-## 4.113.2
-
-### Patch Changes
+## [v4.113.2]
 
 - [#3379](https://github.com/Kilo-Org/kilocode/pull/3379) [`9c7b99c`](https://github.com/Kilo-Org/kilocode/commit/9c7b99c716d92deabc49ec07f5771c03b3507b2c) Thanks [@TsFreddie](https://github.com/TsFreddie)! - Update pricing for DeepSeek V3.2
 
