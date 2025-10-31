@@ -1,5 +1,15 @@
 # kilo-code
 
+## 4.113.2
+
+### Patch Changes
+
+- [#3379](https://github.com/Kilo-Org/kilocode/pull/3379) [`9c7b99c`](https://github.com/Kilo-Org/kilocode/commit/9c7b99c716d92deabc49ec07f5771c03b3507b2c) Thanks [@TsFreddie](https://github.com/TsFreddie)! - Update pricing for DeepSeek V3.2
+
+- [#3342](https://github.com/Kilo-Org/kilocode/pull/3342) [`8827792`](https://github.com/Kilo-Org/kilocode/commit/88277927f69e1baae6f61f0e76f3a43862abd31e) Thanks [@mcowger](https://github.com/mcowger)! - Improved messaging when VS Code LM is unavailable
+
+- [#3411](https://github.com/Kilo-Org/kilocode/pull/3411) [`2dc2a32`](https://github.com/Kilo-Org/kilocode/commit/2dc2a32d9db54cfe3908263eb5f594c99058dde5) Thanks [@kevinvandijk](https://github.com/kevinvandijk)! - Fix @ mentions when editing messages
+
 ## [v4.113.1]
 
 - [#3408](https://github.com/Kilo-Org/kilocode/pull/3408) [`5aee3ad`](https://github.com/Kilo-Org/kilocode/commit/5aee3ad6ee200eefd5dd12933ba650989ccc0857) Thanks [@brianc](https://github.com/brianc)! - Fix auto-complete indicator. It now hides properly if the autocomplete request errors in the background.
